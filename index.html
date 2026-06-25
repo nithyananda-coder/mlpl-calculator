@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MLPL — FL Price Calculator</title>
+<style>
+  :root {
+    --navy:   #1F4E79;
+    --blue:   #2E75B6;
+    --lblue:  #DEEAF1;
+    --green:  #375623;
+    --lgreen: #E2EFDA;
+    --yellow: #FFF2CC;
+    --dyellow:#7F6000;
+    --orange: #FCE4D6;
+    --red:    #C00000;
+    --grey:   #F2F2F2;
+    --border: #BFC9D0;
+    --text:   #1a1a1a;
+    --muted:  #666;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #eef2f7;
+    color: var(--text);
+    padding: 12px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .app-header {
+    background: var(--navy);
+    color: white;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+  .app-header h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+  .app-header p  { font-size: 11px; opacity: 0.75; margin-top: 3px; }
+
+  /* Rubber Board link banner */
+  .rb-banner {
+    background: white;
+    border: 1.5px solid var(--blue);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--navy);
+  }
+  .rb-banner .icon { font-size: 22px; flex-shrink: 0; }
+  .rb-banner .rb-text { flex: 1; }
+  .rb-banner .rb-text strong { font-size: 13px; display: block; }
+  .rb-banner .rb-text span  { font-size: 11px; color: var(--muted); }
+  .rb-banner .arrow { font-size: 18px; color: var(--blue); }
+
+  /* Section card */
+  .card {
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .card-header {
+    background: var(--blue);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 9px 14px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .card-body { padding: 12px 14px; }
+
+  /* Input rows */
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 10px;
+  }
+  .field:last-child { border-bottom: none; }
+  .field label {
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+    line-height: 1.3;
+  }
+  .field .unit {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    margin-right: 6px;
+  }
+  .field input {
+    width: 100px;
+    border: 1.5px solid var(--blue);
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #0000cc;
+    background: var(--lblue);
+    text-align: right;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .field input:focus { border-color: var(--navy); background: #c8dff0; }
+
+  /* Derived rows (grey, read-only look) */
+  .derived {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 10px;
+  }
+  .derived:last-child { border-bottom: none; }
+  .derived label { font-size: 12px; color: var(--muted); flex: 1; }
+  .derived .val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--grey);
+    border-radius: 6px;
+    padding: 5px 10px;
+    min-width: 90px;
+    text-align: right;
+  }
+
+  /* Result boxes */
+  .result-box {
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .result-box .result-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.8; }
+  .result-box .result-value { font-size: 32px; font-weight: 800; margin-top: 2px; letter-spacing: -0.5px; }
+  .result-box .result-sub   { font-size: 11px; margin-top: 3px; opacity: 0.75; }
+
+  .box-breakeven { background: var(--lgreen); color: var(--green); }
+  .box-margin    { background: var(--yellow);  color: var(--dyellow); }
+  .box-checker   { background: var(--lblue);   color: var(--navy); }
+
+  /* Revenue breakdown */
+  .rev-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .rev-row:last-child { border-bottom: none; font-weight: 700; font-size: 14px; }
+  .rev-row .plus { color: var(--muted); margin-right: 4px; }
+
+  /* Margin status */
+  .status-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 10px;
+  }
+  .status-profit { background: var(--lgreen); color: var(--green); }
+  .status-loss   { background: var(--orange);  color: var(--red); }
+
+  /* Toggle for advanced */
+  .toggle-btn {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 14px;
+  }
+  .toggle-btn:active { background: var(--grey); }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 8px;
+    padding-bottom: 20px;
+  }
+  .footer a { color: var(--blue); }
+
+  /* Separator line in results */
+  .sep { border: none; border-top: 1px dashed var(--border); margin: 8px 0; }
+
+  /* Last updated */
+  .last-updated {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>🏭 MLPL — Field Latex Price Calculator</h1>
+  <p>Malabar Latex Pvt Ltd &nbsp;·&nbsp; Internal Use Only</p>
+</div>
+
+<!-- Rubber Board link -->
+<a class="rb-banner" href="https://rubberboard.gov.in/public" target="_blank" rel="noopener">
+  <div class="icon">📊</div>
+  <div class="rb-text">
+    <strong>Check Today's Rubber Board Prices</strong>
+    <span>rubberboard.gov.in → tap to open, then enter prices below</span>
+  </div>
+  <div class="arrow">›</div>
+</a>
+
+<!-- Section 1: Market Prices -->
+<div class="card">
+  <div class="card-header">📅 Today's Market Prices</div>
+  <div class="card-body">
+    <div class="field">
+      <label>Cenex Price</label>
+      <span class="unit">₹/litre</span>
+      <input type="number" id="cenexPrice" value="157" step="0.5" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label>Skim Crepe Price</label>
+      <span class="unit">₹/kg</span>
+      <input type="number" id="skimPrice" value="145" step="0.5" inputmode="decimal">
+    </div>
+    <div class="last-updated" id="lastUpdated"></div>
+  </div>
+</div>
+
+<!-- Section 2: Results (shown prominently) -->
+<div class="card">
+  <div class="card-header">🎯 Break-Even FL Purchase Price</div>
+  <div class="card-body">
+
+    <!-- Revenue breakdown -->
+    <div class="rev-row">
+      <span><span class="plus">+</span>Cenex revenue</span>
+      <span id="cenexRev">—</span>
+    </div>
+    <div class="rev-row">
+      <span><span class="plus">+</span>Skim crepe revenue</span>
+      <span id="skimRev">—</span>
+    </div>
+    <div class="rev-row">
+      <span>Less: Processing cost</span>
+      <span id="procCostDisp">—</span>
+    </div>
+    <div class="rev-row">
+      <span>Total revenue per kg DRC FL</span>
+      <span id="totalRev">—</span>
+    </div>
+
+    <hr class="sep">
+
+    <div class="result-box box-breakeven">
+      <div class="result-label">▶ Break-Even FL Price</div>
+      <div class="result-value" id="breakEven">—</div>
+      <div class="result-sub">Maximum price to pay per kg DRC of field latex</div>
+    </div>
+
+    <div class="result-box box-margin">
+      <div class="result-label">▶ FL Price with ₹<span id="targetLbl">5</span>/kg DRC margin</div>
+      <div class="result-value" id="withMargin">—</div>
+      <div class="result-sub">Target buying price to achieve desired margin</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Section 3: Margin Checker -->
+<div class="card">
+  <div class="card-header">✅ Margin Checker</div>
+  <div class="card-body">
+    <div class="field">
+      <label>Actual FL Purchase Price</label>
+      <span class="unit">₹/kg DRC</span>
+      <input type="number" id="actualFL" value="235" step="0.5" inputmode="decimal">
+    </div>
+    <div class="derived">
+      <label>Gross Margin per kg DRC</label>
+      <span class="val" id="grossMargin">—</span>
+    </div>
+    <div class="derived">
+      <label>Margin per barrel (avg 175 kg DRC)</label>
+      <span class="val" id="marginPerBrl">—</span>
+    </div>
+    <div id="statusBadge"></div>
+  </div>
+</div>
+
+<!-- Advanced toggle -->
+<button class="toggle-btn" onclick="toggleAdvanced()" id="advBtn">
+  ⚙️ Show Processing Assumptions &amp; Derived Calculations ▾
+</button>
+
+<!-- Advanced section (hidden by default) -->
+<div id="advancedSection" style="display:none">
+
+  <div class="card">
+    <div class="card-header">⚙️ Processing Assumptions</div>
+    <div class="card-body">
+      <div class="field">
+        <label>Cenex Efficiency</label>
+        <span class="unit">% of FL DRC</span>
+        <input type="number" id="cenexEff" value="90" step="0.5" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Skim Crepe Yield</label>
+        <span class="unit">% of FL DRC</span>
+        <input type="number" id="skimYield" value="7" step="0.5" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Cenex DRC %</label>
+        <span class="unit">standard</span>
+        <input type="number" id="cenexDRC" value="60" step="0.5" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Barrel Weight (cenex)</label>
+        <span class="unit">kg/brl</span>
+        <input type="number" id="brlKg" value="194" step="1" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Barrel Volume (cenex)</label>
+        <span class="unit">L/brl</span>
+        <input type="number" id="brlL" value="205" step="1" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Processing Cost</label>
+        <span class="unit">₹/kg DRC</span>
+        <input type="number" id="procCost" value="11.65" step="0.05" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Target Margin</label>
+        <span class="unit">₹/kg DRC</span>
+        <input type="number" id="targetMargin" value="5" step="0.5" inputmode="decimal">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">🔢 Derived Calculations</div>
+    <div class="card-body">
+      <div class="derived">
+        <label>Cenex density</label>
+        <span class="val" id="d_density">—</span>
+      </div>
+      <div class="derived">
+        <label>Litres per kg cenex</label>
+        <span class="val" id="d_lPerKg">—</span>
+      </div>
+      <div class="derived">
+        <label>Litres per kg DRC of cenex</label>
+        <span class="val" id="d_lPerDRC">—</span>
+      </div>
+      <div class="derived">
+        <label>Litres of cenex per kg DRC of FL</label>
+        <span class="val" id="d_lPerDRCfl">—</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Quick reference -->
+<div class="card">
+  <div class="card-header">📦 Quick Reference — Barrel Conversion</div>
+  <div class="card-body">
+    <div class="derived"><label>1 barrel cenex weight</label><span class="val">194 kg</span></div>
+    <div class="derived"><label>1 barrel cenex volume</label><span class="val">205 litres</span></div>
+    <div class="derived"><label>Cenex density</label><span class="val">0.946 kg/L</span></div>
+    <div class="derived" id="qr_litres_per_drc"><label>Litres per kg DRC cenex</label><span class="val">1.761 L</span></div>
+  </div>
+</div>
+
+<div class="footer">
+  MLPL Internal Tool &nbsp;·&nbsp; <a href="https://rubberboard.gov.in/public" target="_blank">Rubber Board Prices</a><br>
+  Barrel standard: 194 kg = 205 L &nbsp;·&nbsp; Processing cost default: Apr-26 actuals
+</div>
+
+<script>
+function fmt(v, dec=2) {
+  if (isNaN(v) || !isFinite(v)) return '—';
+  return '₹' + v.toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function fmtN(v, dec=4) {
+  if (isNaN(v) || !isFinite(v)) return '—';
+  return v.toFixed(dec);
+}
+
+function getVal(id, fallback=0) {
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? fallback : v;
+}
+
+function calculate() {
+  const cenexPrice   = getVal('cenexPrice', 157);
+  const skimPrice    = getVal('skimPrice', 145);
+  const cenexEff     = getVal('cenexEff', 90) / 100;
+  const skimYield    = getVal('skimYield', 7) / 100;
+  const cenexDRC     = getVal('cenexDRC', 60) / 100;
+  const brlKg        = getVal('brlKg', 194);
+  const brlL         = getVal('brlL', 205);
+  const procCost     = getVal('procCost', 11.65);
+  const targetMargin = getVal('targetMargin', 5);
+  const actualFL     = getVal('actualFL', 235);
+
+  // Derived
+  const density    = brlKg / brlL;
+  const lPerKg     = brlL / brlKg;
+  const lPerDRC    = lPerKg / cenexDRC;
+  const lPerDRCfl  = cenexEff * lPerDRC;
+
+  // Revenue
+  const cenexRev = lPerDRCfl * cenexPrice;
+  const skimRev  = skimYield * skimPrice;
+  const totalRev = cenexRev + skimRev;
+
+  // Results
+  const breakEven   = totalRev - procCost;
+  const withMargin  = totalRev - procCost - targetMargin;
+  const grossMargin = totalRev - actualFL - procCost;
+  const marginBrl   = grossMargin * 175;
+
+  // Update DOM
+  setText('cenexRev',    fmt(cenexRev));
+  setText('skimRev',     fmt(skimRev));
+  setText('procCostDisp','− ' + fmt(procCost));
+  setText('totalRev',    fmt(totalRev));
+  setText('breakEven',   fmt(breakEven) + '/kg DRC');
+  setText('withMargin',  fmt(withMargin) + '/kg DRC');
+  setText('targetLbl',   targetMargin.toFixed(2));
+
+  setText('grossMargin',  fmt(grossMargin));
+  setText('marginPerBrl', fmt(marginBrl, 0));
+
+  // Status badge
+  const badge = document.getElementById('statusBadge');
+  if (grossMargin > 0) {
+    badge.innerHTML = '<div class="status-badge status-profit">✔ PROFITABLE — Margin: ' + fmt(grossMargin) + '/kg DRC</div>';
+  } else {
+    badge.innerHTML = '<div class="status-badge status-loss">✘ LOSS — Revise purchase price</div>';
+  }
+
+  // Derived display
+  setText('d_density',   fmtN(density, 4) + ' kg/L');
+  setText('d_lPerKg',    fmtN(lPerKg, 4) + ' L/kg');
+  setText('d_lPerDRC',   fmtN(lPerDRC, 4) + ' L/kg DRC');
+  setText('d_lPerDRCfl', fmtN(lPerDRCfl, 4) + ' L/kg DRC FL');
+
+  // Timestamp
+  const now = new Date();
+  document.getElementById('lastUpdated').textContent =
+    'Updated: ' + now.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function toggleAdvanced() {
+  const sec = document.getElementById('advancedSection');
+  const btn = document.getElementById('advBtn');
+  if (sec.style.display === 'none') {
+    sec.style.display = 'block';
+    btn.textContent = '⚙️ Hide Processing Assumptions ▴';
+  } else {
+    sec.style.display = 'none';
+    btn.textContent = '⚙️ Show Processing Assumptions & Derived Calculations ▾';
+  }
+}
+
+// Attach listeners to all inputs
+document.querySelectorAll('input').forEach(el => {
+  el.addEventListener('input', calculate);
+});
+
+// Initial calc
+calculate();
+</script>
+</body>
+</html>
